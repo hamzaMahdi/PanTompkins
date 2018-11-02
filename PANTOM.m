@@ -11,11 +11,11 @@ clear all
 fnam = input('Enter the ECG file name :','s');
 fid = fopen(fnam);
 ecg = fscanf(fid,'%f ');
-
 sze = size(ecg,1);
 necg = ecg/max(ecg);
 p0 = necg;
-
+fs = 200;
+t= [1:length(p0)]/fs;
 
 %%%%%%%%%%%%%NOTCH%%%%%%%%%%%%%
 % define notch filter coefficient arrays a and b
@@ -78,7 +78,7 @@ for i = window:(length(signal)-window+1)
     end
 end
 %%%%%% Thresholding %%%%%%%
-SPKI = 0.5*10^-3;NPKI = 3*10^-3;%idk 
+SPKI = max(signal)*0.6;NPKI = max(signal)*0.3;%idk 
 Threshold = NPKI + 0.25 * (SPKI - NPKI);
 
 QRS = [];Qindex = 0;
@@ -109,9 +109,17 @@ QRS = QRS-38;%There is 38 sample delays
 %5 lowpass, 16 high pass, 2 derivative, 15 integral 
 
 
+%fix the out of bounds issue 
+if QRS(1) <= 30
+    QRS = QRS(2:end);
+end
+if QRS(length(QRS)) >= (length(p0) - 30)
+    QRS = QRS(1:end - 1);
+end
 
-%correct QRS location for sure 
-for i = 1: length(QRS) 
+
+%correct QRS location for sure to match the highest value in the original 
+for i = 1: length(QRS)  
 
     QRSMaxLocation = QRS(i); 
     CurrentQRSMaxValue = p0(QRS(i)); % the value at the uncorrected QRS peak
@@ -135,3 +143,12 @@ subplot(2,1,2); plot (p0);
 hold on; plot(QRS,p0(QRS), 'r*'); hold off;
 title('The corrected QRS peak locations - unfiltered signal');
 xlabel('Time (Sec)'); ylabel('ECG (mV)'); axis auto;
+
+%%%%%%% Calculate R-R interval and other stuff %%%%%%%%%%%
+difference  = diff(QRS,1);%take digital derivative 
+time_difference  = difference*5;%each sample is 5 ms
+average_R_R = mean(time_difference)
+standard_deviation = std(time_difference)
+number_of_beats = length(QRS)
+Hear_rate = number_of_beats./t(end)*60
+
